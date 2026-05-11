@@ -41,8 +41,11 @@ app.use(cookieParser());
 
 app.use(globalLimiter);
 
+// health check
 
-
+app.get('/', (req, res) => {
+  res.send('Roast.IO Backend is running successfully!');
+});
 
 
 //importing the exsiting routes
