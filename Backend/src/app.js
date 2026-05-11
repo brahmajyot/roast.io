@@ -17,9 +17,10 @@ const app = express();
 app.use(express.json());
 
 
+// 1. CORS CONFIGURATION
 const allowedOrigins = [
-  'http://localhost:3000', 
-  'https://roast-io-alpha.vercel.app' 
+  'http://localhost:3000',               // Local development
+  'https://roast-io-alpha.vercel.app'    // Your live Vercel frontend
 ];
 
 const corsOptions = {
@@ -30,21 +31,26 @@ const corsOptions = {
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
-      console.log("Blocked by CORS:", origin);
       callback(new Error('Not allowed by CORS'));
     }
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
-  optionsSuccessStatus: 200 // Some legacy browsers choke on 204
+  optionsSuccessStatus: 200
 };
 
-// 2. Apply CORS middleware
+// 2. MIDDLEWARE STACK
+// Apply CORS first so it can handle preflight requests automatically
 app.use(cors(corsOptions));
 
-// 3. Explicitly handle Preflight requests for all routes
-app.options('*', cors(corsOptions));
+// This replaces the app.options('*') line that caused the crash
+app.options(/(.*)/, cors(corsOptions));
+
+
+
+
+
 
 app.use(helmet());
 
