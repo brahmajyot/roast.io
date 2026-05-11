@@ -21,7 +21,7 @@ app.use(
   cors({
    origin: [
   "http://localhost:3000",
-  "https://yourfrontend.vercel.app",
+  "https://roast-io-alpha.vercel.app/",
 ],
 
     credentials: true,
