@@ -1,0 +1,166 @@
+import OpenAI from "openai";
+
+import dotenv from "dotenv";
+
+dotenv.config();
+
+const client = new OpenAI({
+  apiKey: process.env.GROQ_API_KEY,
+
+  baseURL:
+    "https://api.groq.com/openai/v1",
+});
+
+export const generateReview =
+  async (websiteData) => {
+    try {
+      const prompt = `
+You are an elite senior frontend engineer, recruiter, and internet roast expert.
+
+Your job:
+Analyze this REAL developer portfolio carefully.
+
+Your tone:
+- funny
+- sarcastic
+- brutally honest
+- modern internet humor
+- but still useful and constructive
+
+IMPORTANT:
+- Use REAL portfolio content.
+- Mention actual technologies.
+- Mention actual weaknesses.
+- Mention actual portfolio patterns.
+- Do NOT give generic advice.
+- Different portfolios MUST get different responses.
+- Roast bad design decisions intelligently.
+- Praise genuinely good things.
+
+PORTFOLIO DATA:
+
+TITLE:
+${websiteData.title}
+
+META DESCRIPTION:
+${websiteData.metaDescription}
+
+HEADINGS:
+${websiteData.headings.join(
+  ", "
+)}
+
+LINKS:
+${websiteData.links.join(", ")}
+
+PERFORMANCE:
+${websiteData.performance}
+
+SEO:
+${websiteData.seo}
+
+ACCESSIBILITY:
+${websiteData.accessibility}
+
+BEST PRACTICES:
+${websiteData.bestPractices}
+
+IMAGES WITHOUT ALT:
+${websiteData.imagesWithoutAlt}
+
+TEXT CONTENT:
+${websiteData.textContent.slice(
+  0,
+  5000
+)}
+
+IMPORTANT:
+Return ONLY raw JSON.
+No markdown.
+No explanations.
+No intro text.
+No backticks.
+
+RETURN FORMAT:
+
+{
+  "overallVibe": "",
+  "roastSection": [],
+  "strengths": [],
+  "weaknesses": [],
+  "improvements": [],
+  "recruiterImpression": "",
+  "hiringScore": 0
+}
+`;
+
+      const completion =
+        await client.chat.completions.create(
+          {
+            model:
+              "llama-3.3-70b-versatile",
+
+            messages: [
+              {
+                role: "system",
+
+                content:
+                  "You are a brutally honest senior recruiter and frontend engineer who gives unique reviews based on real portfolio content.",
+              },
+
+              {
+                role: "user",
+
+                content: prompt,
+              },
+            ],
+
+            temperature: 1,
+
+            max_tokens: 1200,
+          }
+        );
+
+      const response =
+        completion.choices[0].message
+          .content;
+
+      console.log(
+        "RAW AI RESPONSE:\n",
+        response
+      );
+
+      // CLEAN RESPONSE
+      const cleaned = response
+        .replace(/```json/g, "")
+        .replace(/```/g, "")
+        .trim();
+
+      // EXTRACT JSON SAFELY
+      const jsonMatch =
+        cleaned.match(
+          /\{[\s\S]*\}/
+        );
+
+      if (!jsonMatch) {
+        throw new Error(
+          "No valid JSON found from AI"
+        );
+      }
+
+      const parsed = JSON.parse(
+        jsonMatch[0]
+      );
+
+      return parsed;
+    } catch (error) {
+      console.log(
+        "AI ERROR:",
+        error
+      );
+
+      throw new Error(
+        "AI review generation failed"
+      );
+    }
+  };
