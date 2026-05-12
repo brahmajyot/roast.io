@@ -50,7 +50,7 @@ export const registerUser = async (
     });
 
     // SEND EMAIL
-    await sendEmail(
+     sendEmail(
       email,
 
       "Verify Your Account",
@@ -327,7 +327,7 @@ export const forgotPassword = async (
 
     await user.save();
 
-    await sendEmail(
+    sendEmail(
       email,
 
       "Reset Password",
