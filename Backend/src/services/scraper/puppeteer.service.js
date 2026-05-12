@@ -1,56 +1,75 @@
 import puppeteer from "puppeteer";
 
-export const scrapeWebsite = async (url) => {
-  const browser = await puppeteer.launch({
-    headless: true,
-  });
+export const scrapeWebsite =
+  async (url) => {
+    try {
+      const browser =
+        await puppeteer.launch({
+          headless: true,
 
-  const page = await browser.newPage();
+          args: [
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+          ],
+        });
 
-  // OPEN WEBSITE
-  await page.goto(url, {
-    waitUntil: "networkidle2",
-    timeout: 60000,
-  });
+      const page =
+        await browser.newPage();
 
-  // SCREENSHOT
-  const screenshotPath = `screenshots/${Date.now()}.png`;
+      await page.goto(url, {
+        waitUntil:
+          "networkidle2",
 
-  await page.screenshot({
-    path: screenshotPath,
-    fullPage: true,
-  });
+        timeout: 60000,
+      });
 
-  // EXTRACT DATA
-  const data = await page.evaluate(() => {
-    return {
-      title: document.title,
+      // GET TITLE
+      const title =
+        await page.title();
 
-      metaDescription:
-        document
-          .querySelector('meta[name="description"]')
-          ?.getAttribute("content") || "",
+      // GET DESCRIPTION
+      const description =
+        await page.$eval(
+          'meta[name="description"]',
 
-      headings: Array.from(document.querySelectorAll("h1, h2, h3"))
-        .map((el) => el.innerText)
-        .filter(Boolean),
+          (el) =>
+            el.content
+        ).catch(() => "");
 
-      links: Array.from(document.querySelectorAll("a"))
-        .map((el) => el.href)
-        .filter(Boolean),
+      // GET ALL TEXT
+      const text =
+        await page.evaluate(() => {
+          return document.body.innerText;
+        });
 
-      imagesWithoutAlt: Array.from(document.querySelectorAll("img"))
-        .filter((img) => !img.alt)
-        .length,
+      // GET IMAGES
+      const images =
+        await page.$$eval(
+          "img",
 
-      textContent: document.body.innerText.slice(0, 3000),
-    };
-  });
+          (imgs) =>
+            imgs.map(
+              (img) => img.src
+            )
+        );
 
-  await browser.close();
+      await browser.close();
 
-  return {
-    ...data,
-    screenshot: screenshotPath,
+      return {
+        title,
+        description,
+        text:
+          text.slice(0, 5000),
+        images,
+      };
+    } catch (error) {
+      console.log(
+        "SCRAPER ERROR:",
+        error
+      );
+
+      throw new Error(
+        "Scraping failed"
+      );
+    }
   };
-};
