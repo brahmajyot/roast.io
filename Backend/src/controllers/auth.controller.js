@@ -105,7 +105,9 @@ export const verifyOTP = async (req, res) => {
 
     await user.save(); // Only one DB call needed here
 
+    
     res.status(200).json({
+      
       message: "Email verified successfully",
       accessToken,
       refreshToken,
@@ -137,12 +139,28 @@ export const resendOTP = async (req, res) => {
 
     // PRO TIP: Don't 'await' the email if you want the UI to respond instantly.
     // Or at least use a try/catch so the API succeeds even if the email is slow.
-    sendEmail(
-      email,
-      "Resend OTP",
-      `<div style="font-family:sans-serif;"><h2>Code: ${otp}</h2></div>`
-    ).catch(err => console.error("Background Email Error:", err));
+  sendEmail(
+  email,
 
+  "Verify Your Account",
+
+  `
+  <div style="font-family:sans-serif;">
+    <h2>Email Verification</h2>
+
+    <h1>${otp}</h1>
+
+    <p>
+      OTP expires in 10 minutes.
+    </p>
+  </div>
+  `
+).catch((err) =>
+  console.log(
+    "EMAIL ERROR:",
+    err
+  )
+);
     res.status(200).json({ message: "New OTP sent successfully" });
   } catch (error) {
     res.status(500).json({ message: error.message });
