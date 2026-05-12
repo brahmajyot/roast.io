@@ -82,104 +82,49 @@ export const registerUser = async (
 };
 
 // VERIFY OTP
-export const verifyOTP = async (
-  req,
-  res
-) => {
+export const verifyOTP = async (req, res) => {
   try {
     const { email, otp } = req.body;
+    const user = await User.findOne({ email });
 
-    const user = await User.findOne({
-      email,
-    });
+    if (!user) return res.status(404).json({ message: "User not found" });
 
-    if (!user) {
-      return res.status(404).json({
-        message: "User not found",
-      });
-    }
+    // Important: Use strings for comparison if OTP is stored as a string
+    if (user.otp !== otp) return res.status(400).json({ message: "Invalid OTP" });
 
-    if (user.otp !== otp) {
-      return res.status(400).json({
-        message: "Invalid OTP",
-      });
-    }
+    if (user.otpExpire < Date.now()) return res.status(400).json({ message: "OTP expired" });
 
-    if (user.otpExpire < Date.now()) {
-      return res.status(400).json({
-        message: "OTP expired",
-      });
-    }
-
-    // VERIFY USER
+    // Update everything in one go
     user.isVerified = true;
-
     user.otp = "";
-
     user.otpExpire = null;
 
-    await user.save();
-
-    // TOKENS
-    const accessToken =
-      generateAccessToken(user._id);
-
-    const refreshToken =
-      generateRefreshToken(user._id);
-
+    const accessToken = generateAccessToken(user._id);
+    const refreshToken = generateRefreshToken(user._id);
     user.refreshToken = refreshToken;
 
-    await user.save();
+    await user.save(); // Only one DB call needed here
 
     res.status(200).json({
-      message:
-        "Email verified successfully",
-
+      message: "Email verified successfully",
       accessToken,
-
       refreshToken,
-
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-      },
+      user: { id: user._id, name: user.name, email: user.email },
     });
   } catch (error) {
-    console.log(error);
-
-    res.status(500).json({
-      message: error.message,
-    });
+    res.status(500).json({ message: error.message });
   }
 };
 
 // RESEND OTP
-export const resendOTP = async (
-  req,
-  res
-) => {
+export const resendOTP = async (req, res) => {
   try {
     const { email } = req.body;
+    const user = await User.findOne({ email });
 
-    const user = await User.findOne({
-      email,
-    });
+    if (!user) return res.status(404).json({ message: "User not found" });
+    if (user.isVerified) return res.status(400).json({ message: "User already verified" });
 
-    if (!user) {
-      return res.status(404).json({
-        message: "User not found",
-      });
-    }
-
-    if (user.isVerified) {
-      return res.status(400).json({
-        message:
-          "User already verified",
-      });
-    }
-
-    // GENERATE OTP
     const otp = otpGenerator.generate(6, {
       upperCaseAlphabets: false,
       lowerCaseAlphabets: false,
@@ -187,40 +132,22 @@ export const resendOTP = async (
     });
 
     user.otp = otp;
-
-    user.otpExpire =
-      Date.now() + 10 * 60 * 1000;
-
+    user.otpExpire = Date.now() + 10 * 60 * 1000;
     await user.save();
 
-    // SEND EMAIL
-    await sendEmail(
+    // PRO TIP: Don't 'await' the email if you want the UI to respond instantly.
+    // Or at least use a try/catch so the API succeeds even if the email is slow.
+    sendEmail(
       email,
-
       "Resend OTP",
+      `<div style="font-family:sans-serif;"><h2>Code: ${otp}</h2></div>`
+    ).catch(err => console.error("Background Email Error:", err));
 
-      `
-      <div style="font-family:sans-serif;">
-        <h2>New OTP Code</h2>
-
-        <h1>${otp}</h1>
-      </div>
-      `
-    );
-
-    res.status(200).json({
-      message:
-        "New OTP sent successfully",
-    });
+    res.status(200).json({ message: "New OTP sent successfully" });
   } catch (error) {
-    console.log(error);
-
-    res.status(500).json({
-      message: error.message,
-    });
+    res.status(500).json({ message: error.message });
   }
 };
-
 // LOGIN USER
 export const loginUser = async (
   req,
