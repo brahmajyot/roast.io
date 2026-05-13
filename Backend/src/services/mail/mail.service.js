@@ -20,8 +20,9 @@ const createTransporter = async () => {
 
   return nodemailer.createTransport({
     host: smtpHost,
-    port: 465,
-    secure: true,
+    port: 587,
+    secure: false,
+    requireTLS: true,
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS,
@@ -29,7 +30,9 @@ const createTransporter = async () => {
     tls: {
       servername: "smtp.gmail.com",
     },
-    connectionTimeout: 10000,
+    connectionTimeout: 30000,
+    greetingTimeout: 30000,
+    socketTimeout: 30000,
   });
 };
 
