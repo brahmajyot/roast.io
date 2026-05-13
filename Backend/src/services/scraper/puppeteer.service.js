@@ -2,14 +2,18 @@ import puppeteer from "puppeteer";
 
 export const scrapeWebsite =
   async (url) => {
+    let browser;
+
     try {
-      const browser =
-        await puppeteer.launch({
+      browser = await puppeteer.launch({
           headless: true,
 
           args: [
             "--no-sandbox",
             "--disable-setuid-sandbox",
+            "--disable-dev-shm-usage",
+            "--disable-gpu",
+            "--single-process",
           ],
         });
 
@@ -18,7 +22,7 @@ export const scrapeWebsite =
 
       await page.goto(url, {
         waitUntil:
-          "networkidle2",
+          "domcontentloaded",
 
         timeout: 60000,
       });
@@ -35,6 +39,28 @@ export const scrapeWebsite =
           (el) =>
             el.content
         ).catch(() => "");
+
+      const headings =
+        await page.$$eval(
+          "h1, h2, h3",
+
+          (elements) =>
+            elements
+              .map((el) =>
+                el.innerText.trim()
+              )
+              .filter(Boolean)
+        );
+
+      const links =
+        await page.$$eval(
+          "a[href]",
+
+          (anchors) =>
+            anchors
+              .map((anchor) => anchor.href)
+              .filter(Boolean)
+        );
 
       // GET ALL TEXT
       const text =
@@ -53,14 +79,33 @@ export const scrapeWebsite =
             )
         );
 
+      const imagesWithoutAlt =
+        await page.$$eval(
+          "img",
+
+          (imgs) =>
+            imgs.filter(
+              (img) =>
+                !img.alt ||
+                !img.alt.trim()
+            ).length
+        );
+
       await browser.close();
+      browser = null;
 
       return {
         title,
         description,
+        metaDescription: description,
+        headings,
+        links,
         text:
           text.slice(0, 5000),
+        textContent:
+          text.slice(0, 5000),
         images,
+        imagesWithoutAlt,
       };
     } catch (error) {
       console.log(
@@ -69,7 +114,11 @@ export const scrapeWebsite =
       );
 
       throw new Error(
-        "Scraping failed"
+        `Scraping failed: ${error.message}`
       );
+    } finally {
+      if (browser) {
+        await browser.close().catch(() => {});
+      }
     }
   };
