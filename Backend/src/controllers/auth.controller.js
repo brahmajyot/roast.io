@@ -53,8 +53,10 @@ export const registerUser = async (
       });
     }
 
+    await user.save();
+
     // SEND EMAIL
-    await sendEmail(
+    sendEmail(
       email,
 
       "Verify Your Account",
@@ -70,9 +72,9 @@ export const registerUser = async (
         </p>
       </div>
       `
-    );
-
-    await user.save();
+    ).catch((error) => {
+      console.log("EMAIL ERROR:", error.message);
+    });
 
     res.status(201).json({
       message:
@@ -145,7 +147,7 @@ export const resendOTP = async (req, res) => {
 
     // PRO TIP: Don't 'await' the email if you want the UI to respond instantly.
     // Or at least use a try/catch so the API succeeds even if the email is slow.
-  await sendEmail(
+  sendEmail(
   email,
 
   "Verify Your Account",
@@ -161,7 +163,9 @@ export const resendOTP = async (req, res) => {
     </p>
   </div>
   `
-);
+).catch((error) => {
+  console.log("EMAIL ERROR:", error.message);
+});
     res.status(200).json({ message: "New OTP sent successfully" });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -321,7 +325,14 @@ export const forgotPassword = async (
         specialChars: false,
       });
 
-    await sendEmail(
+    user.resetOtp = resetOtp;
+
+    user.resetOtpExpire =
+      Date.now() + 10 * 60 * 1000;
+
+    await user.save();
+
+    sendEmail(
       email,
 
       "Reset Password",
@@ -333,14 +344,9 @@ export const forgotPassword = async (
         <h1>${resetOtp}</h1>
       </div>
       `
-    );
-
-    user.resetOtp = resetOtp;
-
-    user.resetOtpExpire =
-      Date.now() + 10 * 60 * 1000;
-
-    await user.save();
+    ).catch((error) => {
+      console.log("EMAIL ERROR:", error.message);
+    });
 
     res.status(200).json({
       message:
