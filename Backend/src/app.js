@@ -50,7 +50,7 @@ app.options(/(.*)/, cors(corsOptions));
 
 
 
-
+app.set('trust proxy', 1);
 
 app.use(helmet());
 
