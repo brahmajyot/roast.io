@@ -1,68 +1,57 @@
-import nodemailer from "nodemailer";
-import dns from "dns/promises";
+import axios from "axios";
 
-const resolveSmtpHost = async () => {
-  const addresses = await dns.resolve4("smtp.gmail.com");
-
-  if (!addresses.length) {
-    throw new Error("Could not resolve smtp.gmail.com IPv4 address");
-  }
-
-  return addresses[0];
-};
-
-const createTransporter = async () => {
-  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-    throw new Error("EMAIL_USER and EMAIL_PASS must be set");
-  }
-
-  const smtpHost = await resolveSmtpHost();
-
-  return nodemailer.createTransport({
-    host: smtpHost,
-    port: 587,
-    secure: false,
-    requireTLS: true,
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-    tls: {
-      servername: "smtp.gmail.com",
-    },
-    connectionTimeout: 30000,
-    greetingTimeout: 30000,
-    socketTimeout: 30000,
-  });
-};
-
-let transporter;
-
-const getTransporter = async () => {
-  if (!transporter) {
-    transporter = await createTransporter();
-  }
-
-  return transporter;
-};
+const BREVO_EMAIL_URL = "https://api.brevo.com/v3/smtp/email";
 
 export const sendEmail = async (to, subject, html) => {
   try {
-    const mailTransporter = await getTransporter();
+    if (!process.env.BREVO_API_KEY) {
+      throw new Error("BREVO_API_KEY must be set");
+    }
 
-    const info = await mailTransporter.sendMail({
-      from: `"Roast.IO" <${process.env.EMAIL_USER}>`,
-      to,
-      subject,
-      html,
-    });
+    const senderEmail =
+      process.env.BREVO_SENDER_EMAIL || process.env.EMAIL_USER;
 
-    console.log("Email sent successfully:", info.response);
-    return info;
-  } catch (error) {
-    console.error("Nodemailer Error:", error.message);
-    throw new Error(
-      `Failed to send email: ${error.message}`
+    if (!senderEmail) {
+      throw new Error(
+        "BREVO_SENDER_EMAIL or EMAIL_USER must be set"
+      );
+    }
+
+    const response = await axios.post(
+      BREVO_EMAIL_URL,
+      {
+        sender: {
+          email: senderEmail,
+          name: process.env.BREVO_SENDER_NAME || "Roast.IO",
+        },
+        to: [{ email: to }],
+        subject,
+        htmlContent: html,
+      },
+      {
+        headers: {
+          "api-key": process.env.BREVO_API_KEY,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        timeout: 30000,
+      }
     );
+
+    console.log(
+      "Email sent successfully:",
+      response.data?.messageId || response.status
+    );
+
+    return response.data;
+  } catch (error) {
+    const message =
+      error.response?.data?.message ||
+      error.response?.data?.code ||
+      error.message;
+
+    console.error("Brevo Email Error:", message);
+
+    throw new Error(`Failed to send email: ${message}`);
   }
 };
