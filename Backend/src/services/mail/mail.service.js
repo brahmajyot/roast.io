@@ -58,6 +58,8 @@ export const sendEmail = async (to, subject, html) => {
     return info;
   } catch (error) {
     console.error("Nodemailer Error:", error.message);
-    throw new Error("Failed to send email");
+    throw new Error(
+      `Failed to send email: ${error.message}`
+    );
   }
 };

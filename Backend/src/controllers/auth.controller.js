@@ -20,11 +20,11 @@ export const registerUser = async (
     const { name, email, password } =
       req.body;
 
-    const userExists = await User.findOne({
+    let user = await User.findOne({
       email,
     });
 
-    if (userExists) {
+    if (user?.isVerified) {
       return res.status(400).json({
         message: "User already exists",
       });
@@ -37,17 +37,21 @@ export const registerUser = async (
       specialChars: false,
     });
 
-    // CREATE USER
-    const user = await User.create({
-      name,
-      email,
-      password,
-
-      otp,
-
-      otpExpire:
-        Date.now() + 10 * 60 * 1000,
-    });
+    if (user) {
+      user.name = name;
+      user.password = password;
+      user.otp = otp;
+      user.otpExpire = Date.now() + 10 * 60 * 1000;
+    } else {
+      user = new User({
+        name,
+        email,
+        password,
+        otp,
+        otpExpire:
+          Date.now() + 10 * 60 * 1000,
+      });
+    }
 
     // SEND EMAIL
     await sendEmail(
@@ -67,6 +71,8 @@ export const registerUser = async (
       </div>
       `
     );
+
+    await user.save();
 
     res.status(201).json({
       message:
@@ -315,13 +321,6 @@ export const forgotPassword = async (
         specialChars: false,
       });
 
-    user.resetOtp = resetOtp;
-
-    user.resetOtpExpire =
-      Date.now() + 10 * 60 * 1000;
-
-    await user.save();
-
     await sendEmail(
       email,
 
@@ -335,6 +334,13 @@ export const forgotPassword = async (
       </div>
       `
     );
+
+    user.resetOtp = resetOtp;
+
+    user.resetOtpExpire =
+      Date.now() + 10 * 60 * 1000;
+
+    await user.save();
 
     res.status(200).json({
       message:
