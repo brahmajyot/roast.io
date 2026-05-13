@@ -6,16 +6,15 @@ export const sendEmail = async (to, subject, html) => {
     const transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
       port: 465,
-      secure: true, // SSL
+      secure: true, 
       auth: {
         user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
+        pass: process.env.EMAIL_PASS, // 16-character App Password
       },
-      // THIS IS THE FIX: Forces IPv4 which avoids Render's timeout
+      // THIS FORCES IPV4 AND STOPS THE TIMEOUT
       dnsLookup: (hostname, options, callback) => {
         dns.lookup(hostname, { family: 4 }, callback);
       },
-      connectionTimeout: 10000, // 10 seconds
     });
 
     await transporter.sendMail({
@@ -24,11 +23,9 @@ export const sendEmail = async (to, subject, html) => {
       subject,
       html,
     });
-
     console.log("Email sent successfully");
   } catch (error) {
-    console.error("Nodemailer Error Details:", error.message);
-    // Don't let a mail error crash your whole server
-    return false; 
+    console.error("Nodemailer Error:", error.message);
+    return false; // Prevents the server from crashing
   }
 };
