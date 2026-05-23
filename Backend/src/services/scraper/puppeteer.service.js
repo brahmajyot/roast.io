@@ -4,37 +4,39 @@ export const scrapeWebsite = async (url) => {
   let browser;
 
   try {
-    // Launching with --single-process and --disable-gpu 
-    // is critical for low-memory environments like Render's free tier.
+    // 1. The executablePath uses the buildpack's path.
+    // 2. The args are optimized to prevent memory crashes on the Free Tier.
     browser = await puppeteer.launch({
+      executablePath: process.env.GOOGLE_CHROME_BIN || '/usr/bin/google-chrome',
       headless: "new",
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage", // Essential for Docker/container environments
+        "--disable-dev-shm-usage",
         "--disable-gpu",
         "--no-zygote",
-        "--single-process",        // Reduces memory overhead significantly
+        "--single-process", // Highly recommended for memory-constrained environments
         "--disable-extensions",
-        "--hide-scrollbars",
-        "--mute-audio"
+        "--disable-background-networking",
+        "--disable-default-apps",
+        "--disable-sync"
       ],
     });
 
     const page = await browser.newPage();
 
-    // Set a realistic User-Agent to avoid being blocked
+    // Set a standard User-Agent to avoid immediate blocks
     await page.setUserAgent(
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     );
 
-    // Increase timeout slightly for slower free-tier instances
+    // Navigate to the URL
     await page.goto(url, {
       waitUntil: "domcontentloaded",
-      timeout: 60000, 
+      timeout: 45000, // Reduced slightly to avoid long hangs on Free Tier
     });
 
-    // Extract data
+    // Use Promise.all to fetch data in parallel for speed
     const [title, description, headings, links, text, images, imagesWithoutAlt] = await Promise.all([
       page.title(),
       page.$eval('meta[name="description"]', (el) => el.content).catch(() => ""),
@@ -51,7 +53,7 @@ export const scrapeWebsite = async (url) => {
       metaDescription: description,
       headings,
       links,
-      text: text.slice(0, 5000),
+      text: text.slice(0, 5000), // Slice to save memory
       textContent: text.slice(0, 5000),
       images,
       imagesWithoutAlt,
